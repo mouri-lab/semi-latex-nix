@@ -1,4 +1,4 @@
-# Makefile for semi-latex-mk2
+# Makefile for semi-latex-nix
 
 # Configuration
 NIX_CMD = nix develop --command bash -c
@@ -69,52 +69,55 @@ endef
 .PHONY: force
 force: ;
 
-# Build any directory in sample/ (e.g., make sample/my-project)
-sample/%: force
-	$(call build_smart,$@)
-
-# Clean any directory (e.g., make clean-sample/my-project)
-clean-sample/%: force
-	$(call clean_smart,sample/$*)
-
-# Watch any directory (e.g., make watch-sample/my-project)
-watch-sample/%: force
-	$(call watch_smart,sample/$*)
-
 # -----------------------------------------------------------------------------
-# Shortcuts
+# Explicit Directory Targets
 # -----------------------------------------------------------------------------
-.PHONY: semi graduation new-graduation master ipsj scis css
+# Support for `make build <dir>`, `make clean <dir>`, `make watch <dir>`
+SUPPORTED_COMMANDS := build clean watch
+ifneq ($(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS)),)
+    # Extract the directory argument (everything after the command)
+    DIR_ARG := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+    # Turn the directory argument into a no-op target to prevent make from complaining
+    $(eval $(DIR_ARG):;@:)
+endif
 
-semi: sample/semi-sample
-graduation: sample/graduation-thesis
-new-graduation: sample/newGraduation
-master: sample/master-thesis
-ipsj: sample/ipsj-report
-scis: sample/SCIS_2024
-css: sample/css2024_style_unix
+.PHONY: build clean watch
 
-# Clean shortcuts
-.PHONY: clean-semi clean-graduation clean-new-graduation clean-master clean-ipsj clean-scis clean-css
+build:
+	@if [ -z "$(DIR_ARG)" ]; then \
+		echo "Error: Directory not specified."; \
+		echo "Usage: make build <directory>"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(DIR_ARG)" ]; then \
+		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
+		exit 1; \
+	fi
+	$(call build_smart,$(DIR_ARG))
 
-clean-semi: clean-sample/semi-sample
-clean-graduation: clean-sample/graduation-thesis
-clean-new-graduation: clean-sample/newGraduation
-clean-master: clean-sample/master-thesis
-clean-ipsj: clean-sample/ipsj-report
-clean-scis: clean-sample/SCIS_2024
-clean-css: clean-sample/css2024_style_unix
+clean:
+	@if [ -z "$(DIR_ARG)" ]; then \
+		echo "Error: Directory not specified."; \
+		echo "Usage: make clean <directory>"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(DIR_ARG)" ]; then \
+		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
+		exit 1; \
+	fi
+	$(call clean_smart,$(DIR_ARG))
 
-# Watch shortcuts
-.PHONY: watch-semi watch-graduation watch-new-graduation watch-master watch-ipsj watch-scis watch-css
-
-watch-semi: watch-sample/semi-sample
-watch-graduation: watch-sample/graduation-thesis
-watch-new-graduation: watch-sample/newGraduation
-watch-master: watch-sample/master-thesis
-watch-ipsj: watch-sample/ipsj-report
-watch-scis: watch-sample/SCIS_2024
-watch-css: watch-sample/css2024_style_unix
+watch:
+	@if [ -z "$(DIR_ARG)" ]; then \
+		echo "Error: Directory not specified."; \
+		echo "Usage: make watch <directory>"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(DIR_ARG)" ]; then \
+		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
+		exit 1; \
+	fi
+	$(call watch_smart,$(DIR_ARG))
 
 # -----------------------------------------------------------------------------
 # Test
@@ -128,8 +131,8 @@ test:
 	for dir in sample/*; do \
 		if [ -d "$$dir" ]; then \
 			echo ""; \
-			$(MAKE) clean-sample/$${dir#sample/} > /dev/null 2>&1; \
-			if $(MAKE) sample/$${dir#sample/}; then \
+			$(MAKE) clean $$dir > /dev/null 2>&1; \
+			if $(MAKE) build $$dir; then \
 				echo "PASS: $$dir"; \
 			else \
 				echo "FAIL: $$dir"; \
@@ -151,19 +154,32 @@ test:
 	fi
 
 # -----------------------------------------------------------------------------
+# Generic Rule (Must be last)
+# -----------------------------------------------------------------------------
+# Prevent make from trying to rebuild the Makefile itself
+Makefile:;
+
+# Helper targets for generic directory operations
+.PHONY: _build_dir _clean_dir _watch_dir
+_build_dir:
+	$(call build_smart,$(TARGET_DIR))
+
+_clean_dir:
+	$(call clean_smart,$(TARGET_DIR))
+
+_watch_dir:
+	$(call watch_smart,$(TARGET_DIR))
+
+# -----------------------------------------------------------------------------
 # Help
 # -----------------------------------------------------------------------------
 help:
 	@echo "Usage:"
-	@echo "  make <project-name>        Build a specific project (shortcut)"
-	@echo "  make sample/<dir-name>     Build any project in sample/ directory"
-	@echo "  make clean-<project>       Clean build artifacts"
-	@echo "  make watch-<project>       Watch for changes and rebuild"
-	@echo ""
-	@echo "Projects:"
-	@echo "  semi, graduation, new-graduation, master, ipsj, scis, css"
+	@echo "  make build <path>          Build project in <path>"
+	@echo "  make clean <path>          Clean project in <path>"
+	@echo "  make watch <path>          Watch project in <path>"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make semi"
-	@echo "  make sample/my-new-project"
-	@echo "  make clean-semi"
+	@echo "  make build sample/semi-sample"
+	@echo "  make build my-seminar-paper"
+	@echo "  make clean sample/semi-sample"
