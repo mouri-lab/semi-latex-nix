@@ -45,37 +45,6 @@ make clean sample/semi-sample
 make test
 ```
 
-### 2. 自動ビルド (Watchモード)
-
-ファイルを保存するたびに自動で再ビルドします。プレビューしながら執筆するのに便利です。
-終了するには `Ctrl+C` を押してください。
-
-```bash
-make watch-semi
-make watch-graduation
-# make watch-<project-name>
-```
-
-### 3. お掃除 (Clean)
-
-生成された中間ファイル（`.aux`, `.log`, `.pdf` など）を削除します。
-
-```bash
-make clean-semi
-make clean-graduation
-# make clean-<project-name>
-```
-
-### 4. その他のディレクトリ
-
-ショートカットが定義されていないディレクトリも、パスを指定すればビルドできます。
-
-```bash
-make sample/my-new-project
-```
-
-
-
 ## ディレクトリ構成
 
 - `Makefile`: ビルドスクリプトの本体
