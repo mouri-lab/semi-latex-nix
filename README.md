@@ -1,9 +1,9 @@
 # semi-latex-nix
 
-Nix と GNU Make を使用した、再現性の高い LaTeX ビルド環境です。
+Nix を利用した再現性の高い LaTeX ビルド環境です。
 複数の論文テンプレート（ゼミ資料、卒論、修論、学会報告など）を統一的なコマンドで管理できます。
 
-## 必要要件
+## 動作環境
 
 - Nix (Flakes enabled)
 
@@ -44,10 +44,6 @@ make clean sample/semi-sample
 ```bash
 make test
 ```
-
-
-
-
 
 ### 2. 自動ビルド (Watchモード)
 
