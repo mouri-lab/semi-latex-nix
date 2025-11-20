@@ -14,26 +14,31 @@
         # 日本語環境を含むTeXLive環境
         texliveEnv = pkgs.texlive.combined.scheme-full;
 
+        # devShell と Docker で共有するパッケージ集合
+        commonPackages = with pkgs; [
+          coreutils
+          bash
+          git
+          gnumake
+          perl
+          inkscape
+          texliveEnv
+        ];
+
         # Dockerイメージのビルド定義
         dockerImage = pkgs.dockerTools.buildLayeredImage {
           name = "semi-latex-builder";
           tag = "latest";
 
-          contents = [
-            pkgs.coreutils
-            pkgs.bash
-            pkgs.git
-            pkgs.gnumake
-            pkgs.perl # latexmkに必要
-            pkgs.inkscape # svgパッケージに必要
-            texliveEnv
-          ];
+          contents = commonPackages;
 
           config = {
             Cmd = [ "bash" ];
             WorkingDir = "/work";
             Env = [
               "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "TEXMFHOME=/work/texmf"
+              "TEXMFVAR=/work/.texlive-var"
             ];
           };
         };
@@ -45,10 +50,11 @@
         };
 
         devShells.default = pkgs.mkShell {
-          buildInputs = [
-            texliveEnv
-            pkgs.inkscape
-          ];
+          packages = commonPackages;
+          shellHook = ''
+            export TEXMFHOME=$PWD/texmf
+            export TEXMFVAR=$PWD/.texlive-var
+          '';
         };
       }
     );
