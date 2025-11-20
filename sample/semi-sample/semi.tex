@@ -81,45 +81,42 @@ LaTexのコンパイル時にエラーが出るor文字化けする場合は，�
 
 
 \section{ディレクトリ構成}
-ゼミテンプレートの構成は，以下に示す.
-画像は，figフォルダへ入れる．
-本文はsemi.texに記述，参考文献はreferences.bibにそれぞれ記述する．
+本プロジェクトのディレクトリ構成は以下のようになっている．
+共通のスタイルファイルは \texttt{style/} ディレクトリに集約されており，各ドキュメントは \texttt{sample/} 以下のサブディレクトリに配置される．
 
 \begin{lstlisting}
-├─ Makefile		% Makefile
-├─ eco.cls		% texのフォーマット
-├─ fig/		% 画像保存用
-│   ├── ex1.eps	% サンプル画像
-│   └── ex2.pdf	% サンプル画像
-├─ ipsjunsrt.bst	% 参考文献のスタイル
-├─ jlisting.sty	% ソースコード添付用
-├─ mediabb.sty 	% pdf変換用
-├─ references.bib	% 参考文献
-├─ semi.pdf		% 本文のPDF
-└─ semi.tex		% 本文
+├─ Makefile        % ビルド用スクリプト
+├─ style/          % 共通スタイルファイル
+│   ├── b3-eco.cls
+│   ├── eco.cls
+│   └── ...
+└─ sample/
+    └─ semi-sample/    % 本ドキュメントのディレクトリ
+        ├── fig/       % 画像ファイル
+        ├── references.bib % 参考文献データベース
+        └── semi.tex   % 本文ソースコード
 \end{lstlisting}
 
-\section{Makefileの概要}
-make helpコマンドで使用方法が書いてあるので参考に．
+\section{Makefileの使用法}
+ビルドにはプロジェクトルートにある \texttt{Makefile} を使用する．
+以下のコマンドで PDF を生成できる．
 
-PDFにを作成するには，make pdf とすると作成できる．
-直接PDFを表示するには，make view とするとAdobe Readerで開いてくれる．
-
-BibTeXでエラーが出た人は，Makefileの57行目の
 \begin{lstlisting}
-BIBTEX   := pbibtex
+$ make build sample/semi-sample
 \end{lstlisting}
-の部分をpbibtexからjbibtexに変更してみて下さい．
-また，references.bibのファイルが存在しなければ，BibTeXは実行されません．
-なので，BibTeXを使いたくない人は，references.bibを削除する（そんな人は卒論で苦労するよ）．
 
-文字コードを変更する場合は，make nkf-euc, make nkf-sjis, make nkf-utf8 コマンドでそれぞれ変更できます．
+生成された PDF は \texttt{sample/semi-sample/semi.pdf} として出力される．
+中間ファイルを削除するには以下のコマンドを実行する．
 
-LaTeX，BibTeXでのlogを最後にまとめて表示するには，Makefileの45行目の
 \begin{lstlisting}
-JOIN-LOGS        := no
+$ make clean sample/semi-sample
 \end{lstlisting}
-をyesにして下さい．このオプションを利用するにはrubyが必要です．
+
+ファイルの変更を監視して自動ビルドするには以下のコマンドを実行する．
+
+\begin{lstlisting}
+$ make watch sample/semi-sample
+\end{lstlisting}
 
 
 \section{参考文献の書き方}
