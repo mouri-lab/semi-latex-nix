@@ -1,7 +1,6 @@
 # Makefile for semi-latex-nix
 
 # Configuration
-NIX_CMD = nix develop --command bash -c
 LATEXMK = latexmk
 # Use absolute path for .latexmkrc
 ROOT_DIR := $(shell pwd)
@@ -13,6 +12,28 @@ export TEXINPUTS := .:$(ROOT_DIR)/style//:
 export BSTINPUTS := .:$(ROOT_DIR)/style//:
 
 LATEXMK_FLAGS = -r $(ROOT_DIR)/.latexmkrc -pdfdvi -shell-escape
+
+# -----------------------------------------------------------------------------
+# Execution Environment Detection
+# -----------------------------------------------------------------------------
+# Check if nix command is available
+HAS_NIX := $(shell command -v nix 2> /dev/null)
+# Check if latexmk is available
+HAS_LATEXMK := $(shell command -v latexmk 2> /dev/null)
+
+ifdef SEMI_LATEX_ENV
+    # Case 1: Inside Nix shell or Docker container (SEMI_LATEX_ENV is set)
+    EXEC_CMD := bash -c
+else ifneq ($(HAS_NIX),)
+    # Case 2: Nix is available but not in shell -> Use nix develop
+    EXEC_CMD := nix develop --command bash -c
+else ifneq ($(HAS_LATEXMK),)
+    # Case 3: No Nix, but latexmk exists (Host with tools) -> Run directly
+    EXEC_CMD := bash -c
+else
+    # Case 4 (Error): No Nix and no latexmk
+    $(error "No 'nix' command found and 'latexmk' is not in PATH. Please install Nix or LaTeX environment.")
+endif
 
 # Default target
 .PHONY: all
@@ -27,7 +48,7 @@ define build_smart
 	@echo "========================================"
 	@echo "Building project in: $(1)"
 	@echo "========================================"
-	@$(NIX_CMD) "cd $(1) && \
+	@$(EXEC_CMD) "cd $(1) && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		echo 'Warning: No file with \\documentclass found. Falling back to first .tex file.'; \
@@ -43,13 +64,13 @@ endef
 
 define clean_smart
 	@echo "Cleaning in: $(1)"
-	@$(NIX_CMD) "cd $(1) && $(LATEXMK) -r $(ROOT_DIR)/.latexmkrc -C"
+	@$(EXEC_CMD) "cd $(1) && $(LATEXMK) -r $(ROOT_DIR)/.latexmkrc -C"
 	rm -rf $(1)/.svg-inkscape
 endef
 
 define watch_smart
 	@echo "Watching in: $(1)"
-	@$(NIX_CMD) "cd $(1) && \
+	@$(EXEC_CMD) "cd $(1) && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		TARGET_TEX=\$$(ls *.tex 2>/dev/null | head -n 1); \
@@ -122,8 +143,23 @@ watch:
 # -----------------------------------------------------------------------------
 # Test
 # -----------------------------------------------------------------------------
-.PHONY: test
+.PHONY: test _test_run
+
 test:
+	@# Optimization: If Nix is available but we are not in the environment,
+	@# enter the environment once for the entire test suite.
+ifneq ($(HAS_NIX),)
+ifndef SEMI_LATEX_ENV
+	@echo "Entering Nix environment for test suite..."
+	@nix develop --command $(MAKE) _test_run
+else
+	@$(MAKE) _test_run
+endif
+else
+	@$(MAKE) _test_run
+endif
+
+_test_run:
 	@echo "========================================"
 	@echo "TESTING ALL SAMPLE PROJECTS"
 	@echo "========================================"

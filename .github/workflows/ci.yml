@@ -71,4 +71,4 @@ jobs:
       - name: Run tests in Docker
         run: |
           docker run --rm -v "$PWD":/work semi-latex-builder:latest \
-            make test NIX_CMD="bash -c"
+            make test
