@@ -22,7 +22,7 @@
         pkgsLinux = import nixpkgs { system = linuxSystem; };
         texliveEnvLinux = pkgsLinux.texlive.combined.scheme-full;
 
-        # Inkscapeラッパー: xvfb-run経由で実行してヘッドレス環境で動作させる
+        # Inkscape wrapper for headless Docker environments: runs via xvfb-run
         inkscapeWrapped = pkgsLinux.writeShellScriptBin "inkscape" ''
           exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a ${pkgsLinux.inkscape}/bin/inkscape "$@"
         '';
@@ -33,7 +33,6 @@
           git
           gnumake
           perl
-          xvfb-run
         ];
 
         # Dockerイメージのビルド定義
