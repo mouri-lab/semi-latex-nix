@@ -25,7 +25,8 @@
         # Inkscape wrapper for headless Docker environments: runs via xvfb-run
         # Note: xvfb-run and its dependencies are automatically included via Nix closure
         inkscapeWrapped = pkgsLinux.writeShellScriptBin "inkscape" ''
-          # Ensure HOME directory exists for GTK
+          # Ensure HOME directory exists for GTK, with fallback
+          HOME=''${HOME:-/tmp/inkscape-home}
           mkdir -p "$HOME"
           # Run Inkscape with virtual X server
           # -a: automatically pick a free display number
