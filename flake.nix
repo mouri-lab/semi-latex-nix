@@ -36,6 +36,14 @@
         '';
 
         commonPackages = p: with p; [
+          bash
+          git
+          gnumake
+          perl
+          glibcLocales  # Required for UTF-8 locale support
+        ];
+
+        commonPackagesDocker = p: with p; [
           busybox  # Provides grep, ls, and other basic utilities
           bash
           git
@@ -44,13 +52,27 @@
           glibcLocales  # Required for UTF-8 locale support
         ];
 
+        commonPackagesDev = p: with p; [
+          coreutils  # Full coreutils for development
+          bash
+          git
+          gnumake
+          perl
+        ];
+
         # Dockerイメージのビルド定義
         dockerImage = pkgs.dockerTools.buildLayeredImage {
           name = "semi-latex-builder";
           tag = "latest";
           
           # Linux用のパッケージを使用
-          contents = (commonPackages pkgsLinux) ++ [ texliveEnvLinux inkscapeWrapped ];
+          contents = (commonPackagesDocker pkgsLinux) ++ [ texliveEnvLinux inkscapeWrapped ];
+
+          # Create /tmp directory with proper permissions
+          extraCommands = ''
+            mkdir -p tmp
+            chmod 1777 tmp
+          '';
 
           config = {
             Cmd = [ "bash" ];
@@ -61,6 +83,9 @@
               "TEXMFVAR=/work/.texlive-var"
               # Environment variables for headless Inkscape operation
               "HOME=/tmp/inkscape-home"
+              "TMPDIR=/tmp"
+              "TMP=/tmp"
+              "TEMP=/tmp"
               "GTK_USE_PORTAL=0"
               "GDK_BACKEND=x11"
               # Prevent fontconfig warnings
@@ -76,7 +101,7 @@
         # Dockerfileビルド用 (nix profile install .#latexEnv で使用)
         latexEnv = pkgs.buildEnv {
           name = "semi-latex-env";
-          paths = (commonPackages pkgs) ++ [ texliveEnv pkgs.inkscape ];
+          paths = (commonPackagesDev pkgs) ++ [ texliveEnv pkgs.inkscape ];
         };
       in
       {
@@ -87,7 +112,7 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = (commonPackages pkgs) ++ [ texliveEnv pkgs.inkscape ];
+          packages = (commonPackagesDev pkgs) ++ [ texliveEnv pkgs.inkscape ];
           shellHook = ''
             export TEXMFHOME=$PWD/texmf
             export TEXMFVAR=$PWD/.texlive-var
