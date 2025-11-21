@@ -23,7 +23,13 @@
         texliveEnvLinux = pkgsLinux.texlive.combined.scheme-full;
 
         # Inkscape wrapper for headless Docker environments: runs via xvfb-run
+        # Note: xvfb-run and its dependencies are automatically included via Nix closure
         inkscapeWrapped = pkgsLinux.writeShellScriptBin "inkscape" ''
+          # Ensure HOME directory exists for GTK
+          mkdir -p "$HOME"
+          # Run Inkscape with virtual X server
+          # -a: automatically pick a free display number
+          # -e: propagate exit code from inkscape
           exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e ${pkgsLinux.inkscape}/bin/inkscape "$@"
         '';
 
@@ -53,6 +59,9 @@
               # Environment variables for headless Inkscape operation
               "HOME=/tmp/inkscape-home"
               "GTK_USE_PORTAL=0"
+              "GDK_BACKEND=x11"
+              # Prevent fontconfig warnings
+              "FONTCONFIG_PATH=${pkgsLinux.fontconfig.out}/etc/fonts"
             ];
           };
         };
