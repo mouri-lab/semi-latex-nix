@@ -24,7 +24,7 @@
 
         # Inkscape wrapper for headless Docker environments: runs via xvfb-run
         inkscapeWrapped = pkgsLinux.writeShellScriptBin "inkscape" ''
-          exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a ${pkgsLinux.inkscape}/bin/inkscape "$@"
+          exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e ${pkgsLinux.inkscape}/bin/inkscape "$@"
         '';
 
         commonPackages = p: with p; [
@@ -51,7 +51,7 @@
               "TEXMFHOME=/work/texmf"
               "TEXMFVAR=/work/.texlive-var"
               # Environment variables for headless Inkscape operation
-              "HOME=/tmp"
+              "HOME=/tmp/inkscape-home"
               "DISPLAY=:99"
               "GTK_USE_PORTAL=0"
             ];
