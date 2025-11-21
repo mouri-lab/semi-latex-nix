@@ -20,3 +20,23 @@ jobs:
       
       - name: Run tests
         run: make test
+
+  docker-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
+
+      - name: Build Docker image
+        run: nix build .#dockerImage
+
+      - name: Load Docker image
+        run: docker load < result
+
+      - name: Run tests in Docker
+        run: |
+          docker run --rm -v "$PWD":/work semi-latex-builder:latest \
+            make test NIX_CMD="bash -c"
