@@ -22,13 +22,42 @@
         pkgsLinux = import nixpkgs { system = linuxSystem; };
         texliveEnvLinux = pkgsLinux.texlive.combined.scheme-full;
 
+        # Inkscape wrapper for headless Docker environments: runs via xvfb-run
+        # Note: xvfb-run and its dependencies are automatically included via Nix closure
+        inkscapeWrapped = pkgsLinux.writeShellScriptBin "inkscape" ''
+          # Ensure HOME directory exists for GTK, with fallback
+          HOME=''${HOME:-/tmp/inkscape-home}
+          mkdir -p "$HOME"
+          # Run Inkscape with virtual X server
+          # -a: automatically pick a free display number
+          # -e: propagate exit code from inkscape
+          # -s: create screen with given parameters (size and depth)
+          exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e -s "-screen 0 1024x768x24" ${pkgsLinux.inkscape}/bin/inkscape "$@"
+        '';
+
         commonPackages = p: with p; [
-          coreutils
           bash
           git
           gnumake
           perl
-          inkscape
+          glibcLocales  # Required for UTF-8 locale support
+        ];
+
+        commonPackagesDocker = p: with p; [
+          busybox  # Provides grep, ls, and other basic utilities
+          bash
+          git
+          gnumake
+          perl
+          glibcLocales  # Required for UTF-8 locale support
+        ];
+
+        commonPackagesDev = p: with p; [
+          coreutils  # Full coreutils for development
+          bash
+          git
+          gnumake
+          perl
         ];
 
         # Dockerイメージのビルド定義
@@ -37,7 +66,13 @@
           tag = "latest";
           
           # Linux用のパッケージを使用
-          contents = (commonPackages pkgsLinux) ++ [ texliveEnvLinux ];
+          contents = (commonPackagesDocker pkgsLinux) ++ [ texliveEnvLinux inkscapeWrapped ];
+
+          # Create /tmp directory with proper permissions
+          extraCommands = ''
+            mkdir -p tmp
+            chmod 1777 tmp
+          '';
 
           config = {
             Cmd = [ "bash" ];
@@ -46,6 +81,19 @@
               "SSL_CERT_FILE=${pkgsLinux.cacert}/etc/ssl/certs/ca-bundle.crt"
               "TEXMFHOME=/work/texmf"
               "TEXMFVAR=/work/.texlive-var"
+              # Environment variables for headless Inkscape operation
+              "HOME=/tmp/inkscape-home"
+              "TMPDIR=/tmp"
+              "TMP=/tmp"
+              "TEMP=/tmp"
+              "GTK_USE_PORTAL=0"
+              "GDK_BACKEND=x11"
+              # Prevent fontconfig warnings
+              "FONTCONFIG_PATH=${pkgsLinux.fontconfig.out}/etc/fonts"
+              # Set locale for proper UTF-8 handling
+              "LOCALE_ARCHIVE=${pkgsLinux.glibcLocales}/lib/locale/locale-archive"
+              "LANG=C.UTF-8"
+              "LC_ALL=C.UTF-8"
             ];
           };
         };
@@ -53,7 +101,7 @@
         # Dockerfileビルド用 (nix profile install .#latexEnv で使用)
         latexEnv = pkgs.buildEnv {
           name = "semi-latex-env";
-          paths = (commonPackages pkgs) ++ [ texliveEnv ];
+          paths = (commonPackagesDev pkgs) ++ [ texliveEnv pkgs.inkscape ];
         };
       in
       {
@@ -64,7 +112,7 @@
         };
 
         devShells.default = pkgs.mkShell {
-          packages = (commonPackages pkgs) ++ [ texliveEnv ];
+          packages = (commonPackagesDev pkgs) ++ [ texliveEnv pkgs.inkscape ];
           shellHook = ''
             export TEXMFHOME=$PWD/texmf
             export TEXMFVAR=$PWD/.texlive-var
