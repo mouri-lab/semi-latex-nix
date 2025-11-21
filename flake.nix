@@ -36,7 +36,7 @@
         '';
 
         commonPackages = p: with p; [
-          coreutils
+          busybox  # Provides grep, ls, and other basic utilities
           bash
           git
           gnumake
