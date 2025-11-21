@@ -64,6 +64,9 @@
               "GDK_BACKEND=x11"
               # Prevent fontconfig warnings
               "FONTCONFIG_PATH=${pkgsLinux.fontconfig.out}/etc/fonts"
+              # Set locale for proper UTF-8 handling
+              "LANG=C.UTF-8"
+              "LC_ALL=C.UTF-8"
             ];
           };
         };
