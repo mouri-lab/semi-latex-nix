@@ -41,6 +41,7 @@
           git
           gnumake
           perl
+          glibcLocales  # Required for UTF-8 locale support
         ];
 
         # Dockerイメージのビルド定義
@@ -65,6 +66,7 @@
               # Prevent fontconfig warnings
               "FONTCONFIG_PATH=${pkgsLinux.fontconfig.out}/etc/fonts"
               # Set locale for proper UTF-8 handling
+              "LOCALE_ARCHIVE=${pkgsLinux.glibcLocales}/lib/locale/locale-archive"
               "LANG=C.UTF-8"
               "LC_ALL=C.UTF-8"
             ];
