@@ -94,6 +94,7 @@
               "LOCALE_ARCHIVE=${pkgsLinux.glibcLocales}/lib/locale/locale-archive"
               "LANG=C.UTF-8"
               "LC_ALL=C.UTF-8"
+              "SEMI_LATEX_ENV=1"
             ];
           };
         };
@@ -116,6 +117,7 @@
           shellHook = ''
             export TEXMFHOME=$PWD/texmf
             export TEXMFVAR=$PWD/.texlive-var
+            export SEMI_LATEX_ENV=1
           '';
         };
       }
