@@ -30,7 +30,8 @@
           # Run Inkscape with virtual X server
           # -a: automatically pick a free display number
           # -e: propagate exit code from inkscape
-          exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e ${pkgsLinux.inkscape}/bin/inkscape "$@"
+          # -s: create screen with given parameters (size and depth)
+          exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e -s "-screen 0 1024x768x24" ${pkgsLinux.inkscape}/bin/inkscape "$@"
         '';
 
         commonPackages = p: with p; [
