@@ -42,4 +42,5 @@ jobs:
           large-packages: true
           docker-images: true
           swap-storage: true
-      
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v13
