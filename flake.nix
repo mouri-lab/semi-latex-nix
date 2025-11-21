@@ -52,7 +52,6 @@
               "TEXMFVAR=/work/.texlive-var"
               # Environment variables for headless Inkscape operation
               "HOME=/tmp/inkscape-home"
-              "DISPLAY=:99"
               "GTK_USE_PORTAL=0"
             ];
           };
