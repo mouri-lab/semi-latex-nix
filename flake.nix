@@ -50,6 +50,11 @@
           gnumake
           perl
           glibcLocales  # Required for UTF-8 locale support
+					rsync
+          fswatch  # File watcher for watch mode
+          # Japanese fonts for Inkscape
+          noto-fonts-cjk-sans
+          noto-fonts-cjk-serif
         ];
 
         commonPackagesDev = p: with p; [
