@@ -1,4 +1,4 @@
-$latex = 'platex -kanji=utf8 %O %S';
+$latex = 'platex -kanji=utf8 -interaction=nonstopmode %O %S';
 $bibtex = 'pbibtex -kanji=utf8 %O %S';
 $dvipdf = 'dvipdfmx %O -o %D %S';
 $makeindex = 'mendex %O -o %D %S';
