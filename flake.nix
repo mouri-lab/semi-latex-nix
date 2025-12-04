@@ -58,6 +58,8 @@
           git
           gnumake
           perl
+          rsync
+          fswatch  # File watcher for watch mode
           # Japanese fonts for Inkscape
           noto-fonts-cjk-sans
           noto-fonts-cjk-serif
@@ -140,6 +142,13 @@
             export TEXMFVAR=$PWD/.texlive-var
             export SEMI_LATEX_ENV=1
             export FONTCONFIG_FILE=${fontsConf}
+
+            # Set Japanese font to IPAex (compatible with mouri-lab/semi-latex Docker image)
+            # Only run if not already configured
+            if ! kanji-config-updmap status 2>/dev/null | grep -q "CURRENT family for ja: ipaex"; then
+              echo "Setting Japanese font to IPAex..."
+              kanji-config-updmap-user ipaex >/dev/null 2>&1 || true
+            fi
           '';
         };
       }

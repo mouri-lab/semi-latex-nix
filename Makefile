@@ -5,6 +5,9 @@ LATEXMK = latexmk
 # Use absolute path for .latexmkrc
 ROOT_DIR := $(shell pwd)
 
+# Temporary build directory (can be overridden)
+BUILD_DIR := $(ROOT_DIR)/.build
+
 # Environment variables for TeX search paths
 # Add style directory to TEXINPUTS and BSTINPUTS
 # // means search recursively. The trailing colon is important to include system paths.
@@ -42,13 +45,26 @@ all: help
 # -----------------------------------------------------------------------------
 # Smart Build Logic
 # -----------------------------------------------------------------------------
-# Finds the first .tex file containing \documentclass and builds it.
-# If none found, falls back to the first .tex file.
+# Builds in a temporary directory and copies back only the PDF and log files.
+# This keeps the source directory clean.
+
+# Files to exclude when syncing to build directory (LaTeX intermediate files)
+RSYNC_EXCLUDE := --exclude='*.aux' --exclude='*.bbl' --exclude='*.blg' \
+	--exclude='*.dvi' --exclude='*.fdb_latexmk' --exclude='*.fls' \
+	--exclude='*.log' --exclude='*.out' --exclude='*.toc' --exclude='*.lof' \
+	--exclude='*.lot' --exclude='*.synctex' --exclude='*.synctex.gz' \
+	--exclude='*.nav' --exclude='*.snm' --exclude='*.vrb' \
+	--exclude='.svg-inkscape'
+
 define build_smart
 	@echo "========================================"
 	@echo "Building project in: $(1)"
 	@echo "========================================"
-	@$(EXEC_CMD) "cd $(1) && \
+	@# Create temp build directory
+	@mkdir -p "$(BUILD_DIR)/$(1)"
+	@# Copy source files to build directory (excluding intermediate files)
+	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(BUILD_DIR)/$(1)/"
+	@$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		echo 'Warning: No file with \\documentclass found. Falling back to first .tex file.'; \
@@ -59,18 +75,41 @@ define build_smart
 		exit 1; \
 	fi; \
 	echo \"Detected main file: \$$TARGET_TEX\"; \
-	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\""
+	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
+	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//') && \
+	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+	cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+	cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"
+	@echo "----------------------------------------"
+	@echo "Build complete. Artifacts copied to $(1)"
 endef
 
 define clean_smart
 	@echo "Cleaning in: $(1)"
-	@$(EXEC_CMD) "cd $(1) && $(LATEXMK) -r $(ROOT_DIR)/.latexmkrc -C"
-	rm -rf $(1)/.svg-inkscape
+	@# Remove build directory for this project
+	@rm -rf "$(BUILD_DIR)/$(1)"
+	@echo "Cleaned build directory for $(1)"
+endef
+
+# Clean intermediate files from source directory (for migration from old build system)
+define clean_source_smart
+	@echo "Cleaning intermediate files in source: $(1)"
+	@rm -f $(1)/*.aux $(1)/*.bbl $(1)/*.blg $(1)/*.dvi $(1)/*.fdb_latexmk \
+		$(1)/*.fls $(1)/*.out $(1)/*.toc $(1)/*.lof $(1)/*.lot \
+		$(1)/*.synctex $(1)/*.synctex.gz $(1)/*.nav $(1)/*.snm $(1)/*.vrb $(1)/*.w18
+	@rm -rf $(1)/.svg-inkscape
+	@echo "Cleaned intermediate files in $(1)"
 endef
 
 define watch_smart
 	@echo "Watching in: $(1)"
-	@$(EXEC_CMD) "cd $(1) && \
+	@echo "========================================"
+	@# Create temp build directory
+	@mkdir -p "$(BUILD_DIR)/$(1)"
+	@# Initial copy of source files (excluding intermediate files)
+	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(BUILD_DIR)/$(1)/"
+	@# Initial build and detect target file
+	@$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		TARGET_TEX=\$$(ls *.tex 2>/dev/null | head -n 1); \
@@ -80,7 +119,45 @@ define watch_smart
 		exit 1; \
 	fi; \
 	echo \"Detected main file: \$$TARGET_TEX\"; \
-	$(LATEXMK) -pvc $(LATEXMK_FLAGS) \"\$$TARGET_TEX\""
+	echo \"\$$TARGET_TEX\" > .target_tex; \
+	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//'); \
+	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
+	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+	cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+	cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"
+	@# Open PDF after initial build
+	@TARGET_BASE=$$(cat "$(BUILD_DIR)/$(1)/.target_tex" | sed 's/\.tex$$//'); \
+	if command -v open >/dev/null 2>&1; then \
+		open "$(1)/$$TARGET_BASE.pdf" 2>/dev/null || true; \
+	elif command -v xdg-open >/dev/null 2>&1; then \
+		xdg-open "$(1)/$$TARGET_BASE.pdf" 2>/dev/null || true; \
+	fi
+	@# Get target basename for excluding output files
+	@TARGET_BASE=$$(cat "$(BUILD_DIR)/$(1)/.target_tex" | sed 's/\.tex$$//'); \
+	echo "========================================"; \
+	echo "Watching for changes in: $(1)"; \
+	echo "Excluding: $$TARGET_BASE*.pdf, $$TARGET_BASE*.log, $$TARGET_BASE*.blg"; \
+	echo "Press Ctrl+C to stop."; \
+	echo "========================================"; \
+	fswatch --event Created --event Updated --event Removed --event Renamed --event MovedFrom --event MovedTo \
+		-e "$$TARGET_BASE.*\.pdf$$" \
+		-e "$$TARGET_BASE.*\.log$$" \
+		-e "$$TARGET_BASE.*\.blg$$" \
+		"$(1)" | while read CHANGED_FILE; do \
+		echo ""; \
+		echo "Change detected: $$CHANGED_FILE"; \
+		echo "Rebuilding..."; \
+		rsync -a --delete $(RSYNC_EXCLUDE) --exclude='.target_tex' "$(1)/" "$(BUILD_DIR)/$(1)/"; \
+		$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
+			TARGET_TEX=\$$(cat .target_tex) && \
+			TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\\.tex\$$//') && \
+			$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
+			cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+			cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
+			cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"; \
+		echo "========================================"; \
+		echo "Waiting for changes..."; \
+	done
 endef
 
 # -----------------------------------------------------------------------------
@@ -94,7 +171,7 @@ force: ;
 # Explicit Directory Targets
 # -----------------------------------------------------------------------------
 # Support for `make build <dir>`, `make clean <dir>`, `make watch <dir>`
-SUPPORTED_COMMANDS := build clean watch
+SUPPORTED_COMMANDS := build clean clean-source watch
 ifneq ($(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS)),)
     # Extract the directory argument (everything after the command)
     DIR_ARG := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -102,7 +179,7 @@ ifneq ($(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS)),)
     $(eval $(DIR_ARG):;@:)
 endif
 
-.PHONY: build clean watch
+.PHONY: build clean clean-source watch clean-all
 
 build:
 	@if [ -z "$(DIR_ARG)" ]; then \
@@ -127,6 +204,23 @@ clean:
 		exit 1; \
 	fi
 	$(call clean_smart,$(DIR_ARG))
+
+clean-source:
+	@if [ -z "$(DIR_ARG)" ]; then \
+		echo "Error: Directory not specified."; \
+		echo "Usage: make clean-source <directory>"; \
+		exit 1; \
+	fi
+	@if [ ! -d "$(DIR_ARG)" ]; then \
+		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
+		exit 1; \
+	fi
+	$(call clean_source_smart,$(DIR_ARG))
+
+clean-all:
+	@echo "Cleaning all build artifacts..."
+	@rm -rf "$(BUILD_DIR)"
+	@echo "Removed $(BUILD_DIR)"
 
 watch:
 	@if [ -z "$(DIR_ARG)" ]; then \
@@ -212,10 +306,17 @@ _watch_dir:
 help:
 	@echo "Usage:"
 	@echo "  make build <path>          Build project in <path>"
-	@echo "  make clean <path>          Clean project in <path>"
+	@echo "  make clean <path>          Clean build directory for <path>"
+	@echo "  make clean-source <path>   Clean intermediate files from source <path>"
+	@echo "  make clean-all             Clean all build artifacts (.build directory)"
 	@echo "  make watch <path>          Watch project in <path>"
+	@echo ""
+	@echo "Build artifacts are stored in: $(BUILD_DIR)"
+	@echo "Only PDF and log files are copied back to source directory."
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build sample/semi-sample"
 	@echo "  make build my-seminar-paper"
 	@echo "  make clean sample/semi-sample"
+	@echo "  make clean-source semi/20251205   # Remove old intermediate files"
+	@echo "  make clean-all"

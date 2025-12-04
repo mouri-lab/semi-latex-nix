@@ -7,3 +7,6 @@ result-*
 
 # Ignore inkscape generated files
 .svg-inkscape/
+
+# Ignore temporary build directory
+.build/
