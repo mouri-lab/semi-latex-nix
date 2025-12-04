@@ -86,9 +86,9 @@ define build_smart
 	echo \"Detected main file: \$$TARGET_TEX\"; \
 	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
 	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//') && \
-	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-	cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-	cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"
+	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' && \
+	{ cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
+	{ cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"
 	@echo "----------------------------------------"
 	@echo "Build complete. Artifacts copied to $(1)"
 endef
@@ -133,9 +133,9 @@ define watch_smart
 	echo \"\$$TARGET_TEX\" > .target_tex; \
 	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//'); \
 	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
-	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-	cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-	cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"
+	cp -f "\$$TARGET_BASE.pdf" '$(ROOT_DIR)/$(1)/' && \
+	{ cp -f "\$$TARGET_BASE.log" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
+	{ cp -f "\$$TARGET_BASE.blg" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"
 	@# Open PDF after initial build
 	@TARGET_BASE=$$(cat "$(BUILD_DIR)/$(1)/.target_tex" | sed 's/\.tex$$//'); \
 	if command -v open >/dev/null 2>&1; then \
@@ -163,9 +163,9 @@ define watch_smart
 			TARGET_TEX=\$$(cat .target_tex) && \
 			TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\\.tex\$$//') && \
 			$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
-			cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-			cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null; \
-			cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null"; \
+			cp -f "\$$TARGET_BASE.pdf" '$(ROOT_DIR)/$(1)/' && \
+			{ cp -f "\$$TARGET_BASE.log" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
+			{ cp -f "\$$TARGET_BASE.blg" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"; \
 		echo "========================================"; \
 		echo "Waiting for changes..."; \
 	done
