@@ -144,10 +144,18 @@
             export FONTCONFIG_FILE=${fontsConf}
 
             # Set Japanese font to IPAex (compatible with mouri-lab/semi-latex Docker image)
-            # Only run if not already configured
-            if ! kanji-config-updmap status 2>/dev/null | grep -q "CURRENT family for ja: ipaex"; then
-              echo "Setting Japanese font to IPAex..."
-              kanji-config-updmap-user ipaex >/dev/null 2>&1 || true
+            # Check if font map needs to be regenerated for this TEXMFVAR
+            _KANJIX_MAP="$TEXMFVAR/fonts/map/dvipdfmx/updmap/kanjix.map"
+            if [ ! -f "$_KANJIX_MAP" ]; then
+              # Font map doesn't exist in TEXMFVAR, need to set up
+              if ! kanji-config-updmap status 2>/dev/null | grep -q "CURRENT family for ja: ipaex"; then
+                echo "Setting Japanese font to IPAex..."
+                kanji-config-updmap-user ipaex >/dev/null 2>&1 || true
+              else
+                # Already configured but map not in TEXMFVAR, regenerate
+                echo "Regenerating font maps for TEXMFVAR..."
+                updmap-user >/dev/null 2>&1 || true
+              fi
             fi
           '';
         };

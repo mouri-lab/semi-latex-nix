@@ -10,3 +10,6 @@ result-*
 
 # Ignore temporary build directory
 .build/
+
+# Ignore TeX Live variable data
+.texlive-var/
