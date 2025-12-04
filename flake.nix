@@ -13,7 +13,7 @@
 
         # 開発環境用 (ホストOSに合わせる)
         texliveEnv = pkgs.texlive.combined.scheme-full;
-        
+
         # Dockerイメージ用 (ホストのアーキテクチャに合わせたLinuxを使用)
         # macOS (darwin) の場合、対応するLinuxアーキテクチャを選択します。
         # これにより、macOS側で linux-builder が有効になっていれば、
@@ -58,13 +58,34 @@
           git
           gnumake
           perl
+          # Japanese fonts for Inkscape
+          noto-fonts-cjk-sans
+          noto-fonts-cjk-serif
         ];
+
+        # Fontconfig configuration to map Helvetica to Japanese font
+        fontsConf = pkgs.writeText "fonts.conf" ''
+          <?xml version="1.0"?>
+          <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+          <fontconfig>
+            <dir>${pkgs.noto-fonts-cjk-sans}/share/fonts</dir>
+            <dir>${pkgs.noto-fonts-cjk-serif}/share/fonts</dir>
+            <match target="pattern">
+              <test qual="any" name="family">
+                <string>Helvetica</string>
+              </test>
+              <edit name="family" mode="prepend" binding="strong">
+                <string>Noto Sans CJK JP</string>
+              </edit>
+            </match>
+          </fontconfig>
+        '';
 
         # Dockerイメージのビルド定義
         dockerImage = pkgs.dockerTools.buildLayeredImage {
           name = "semi-latex-builder";
           tag = "latest";
-          
+
           # Linux用のパッケージを使用
           contents = (commonPackagesDocker pkgsLinux) ++ [ texliveEnvLinux inkscapeWrapped ];
 
@@ -118,6 +139,7 @@
             export TEXMFHOME=$PWD/texmf
             export TEXMFVAR=$PWD/.texlive-var
             export SEMI_LATEX_ENV=1
+            export FONTCONFIG_FILE=${fontsConf}
           '';
         };
       }
