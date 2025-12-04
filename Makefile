@@ -14,7 +14,14 @@ BUILD_DIR := $(ROOT_DIR)/.build
 export TEXINPUTS := .:$(ROOT_DIR)/style//:
 export BSTINPUTS := .:$(ROOT_DIR)/style//:
 
+# TeX Live variable directory (for font maps, etc.)
+export TEXMFVAR := $(ROOT_DIR)/.texlive-var
+
 LATEXMK_FLAGS = -r $(ROOT_DIR)/.latexmkrc -pdfdvi -shell-escape
+
+# Font setup command (IPAex for compatibility with mouri-lab/semi-latex)
+# This ensures font maps exist in TEXMFVAR before building
+FONT_SETUP_CMD = if [ ! -f \"$(TEXMFVAR)/fonts/map/dvipdfmx/updmap/kanjix.map\" ]; then if ! kanji-config-updmap status 2>/dev/null | grep -q 'CURRENT family for ja: ipaex'; then echo 'Setting Japanese font to IPAex...'; kanji-config-updmap-user ipaex >/dev/null 2>&1 || true; else echo 'Regenerating font maps...'; updmap-user >/dev/null 2>&1 || true; fi; fi
 
 # -----------------------------------------------------------------------------
 # Execution Environment Detection
@@ -60,6 +67,8 @@ define build_smart
 	@echo "========================================"
 	@echo "Building project in: $(1)"
 	@echo "========================================"
+	@# Ensure font maps are set up
+	@$(EXEC_CMD) "$(FONT_SETUP_CMD)"
 	@# Create temp build directory
 	@mkdir -p "$(BUILD_DIR)/$(1)"
 	@# Copy source files to build directory (excluding intermediate files)
@@ -104,6 +113,8 @@ endef
 define watch_smart
 	@echo "Watching in: $(1)"
 	@echo "========================================"
+	@# Ensure font maps are set up
+	@$(EXEC_CMD) "$(FONT_SETUP_CMD)"
 	@# Create temp build directory
 	@mkdir -p "$(BUILD_DIR)/$(1)"
 	@# Initial copy of source files (excluding intermediate files)
