@@ -5,11 +5,11 @@ result-*
 # Ignore automatically generated direnv output
 .direnv
 
-# Ignore inkscape generated files
-.svg-inkscape/
-
 # Ignore temporary build directory
 .build/
 
 # Ignore TeX Live variable data
 .texlive-var/
+
+# macOS specific files
+.DS_Store
