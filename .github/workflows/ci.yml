@@ -38,7 +38,14 @@ jobs:
         run: make test
 
   docker-test:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@main
@@ -62,13 +69,13 @@ jobs:
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v13
 
-      - name: Build Docker image
+      - name: Build Docker image (${{ matrix.arch }})
         run: nix build .#dockerImage
 
       - name: Load Docker image
         run: docker load < result
 
-      - name: Run tests in Docker
+      - name: Run tests in Docker (${{ matrix.arch }})
         run: |
           docker run --rm -v "$PWD":/work semi-latex-builder:latest \
             make test
