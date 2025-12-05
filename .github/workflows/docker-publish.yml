@@ -124,3 +124,36 @@ jobs:
 
           # Push full SHA manifest
           docker manifest push ${DOCKERHUB_REPO}:${{ github.sha }}
+
+  # Test with published Docker image from DockerHub
+  # This tests the Makefile's auto-detection feature (non-Nix environment)
+  docker-pull-test:
+    runs-on: ${{ matrix.runner }}
+    needs: create-manifest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: amd64
+          - runner: ubuntu-24.04-arm
+            platform: arm64
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Run tests (auto-detects Docker)
+        run: make test
