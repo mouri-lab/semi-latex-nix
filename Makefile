@@ -30,6 +30,22 @@ FONT_SETUP_CMD = if [ ! -f \"$(TEXMFVAR)/fonts/map/dvipdfmx/updmap/kanjix.map\" 
 HAS_NIX := $(shell command -v nix 2> /dev/null)
 # Check if latexmk is available
 HAS_LATEXMK := $(shell command -v latexmk 2> /dev/null)
+# Check if docker is available
+HAS_DOCKER := $(shell command -v docker 2> /dev/null)
+
+# Docker image for LaTeX builds
+DOCKER_IMAGE := sakuramourilab/semi-latex-builder
+
+# Docker run command with volume mounts
+# Mount the entire project directory and set up environment variables
+DOCKER_RUN := docker run --rm \
+	-v "$(ROOT_DIR):$(ROOT_DIR)" \
+	-w "$(ROOT_DIR)" \
+	-e "TEXINPUTS=$(TEXINPUTS)" \
+	-e "BSTINPUTS=$(BSTINPUTS)" \
+	-e "TEXMFVAR=$(TEXMFVAR)" \
+	-e "SEMI_LATEX_ENV=docker" \
+	$(DOCKER_IMAGE)
 
 ifdef SEMI_LATEX_ENV
     # Case 1: Inside Nix shell or Docker container (SEMI_LATEX_ENV is set)
@@ -37,12 +53,15 @@ ifdef SEMI_LATEX_ENV
 else ifneq ($(HAS_NIX),)
     # Case 2: Nix is available but not in shell -> Use nix develop
     EXEC_CMD := nix develop --command bash -c
+else ifneq ($(HAS_DOCKER),)
+    # Case 3: No Nix, but Docker is available -> Use Docker
+    EXEC_CMD := $(DOCKER_RUN) bash -c
 else ifneq ($(HAS_LATEXMK),)
-    # Case 3: No Nix, but latexmk exists (Host with tools) -> Run directly
+    # Case 4: No Nix/Docker, but latexmk exists (Host with tools) -> Run directly
     EXEC_CMD := bash -c
 else
-    # Case 4 (Error): No Nix and no latexmk
-    $(error "No 'nix' command found and 'latexmk' is not in PATH. Please install Nix or LaTeX environment.")
+    # Case 5 (Error): No Nix, Docker, or latexmk
+    $(error "No 'nix', 'docker', or 'latexmk' found. Please install Nix, Docker, or a LaTeX environment.")
 endif
 
 # Default target
@@ -251,12 +270,19 @@ watch:
 .PHONY: test _test_run
 
 test:
-	@# Optimization: If Nix is available but we are not in the environment,
+	@# Optimization: If Nix or Docker is available but we are not in the environment,
 	@# enter the environment once for the entire test suite.
 ifneq ($(HAS_NIX),)
 ifndef SEMI_LATEX_ENV
 	@echo "Entering Nix environment for test suite..."
 	@nix develop --command $(MAKE) _test_run
+else
+	@$(MAKE) _test_run
+endif
+else ifneq ($(HAS_DOCKER),)
+ifndef SEMI_LATEX_ENV
+	@echo "Entering Docker environment for test suite..."
+	@$(DOCKER_RUN) $(MAKE) _test_run
 else
 	@$(MAKE) _test_run
 endif
@@ -324,6 +350,11 @@ help:
 	@echo ""
 	@echo "Build artifacts are stored in: $(BUILD_DIR)"
 	@echo "Only PDF and log files are copied back to source directory."
+	@echo ""
+	@echo "Execution Environment (auto-detected):"
+	@echo "  1. Nix (nix develop)       - if 'nix' command is available"
+	@echo "  2. Docker                  - if 'docker' is available (uses $(DOCKER_IMAGE))"
+	@echo "  3. Host LaTeX              - if 'latexmk' is in PATH"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make build sample/semi-sample"
