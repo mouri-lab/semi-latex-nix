@@ -266,6 +266,16 @@ else
 	@exit 1
 endif
 
+# Docker run command for interactive watch mode (needs -it for signal handling)
+DOCKER_RUN_INTERACTIVE := docker run --rm -it \
+	-v "$(ROOT_DIR):$(ROOT_DIR)" \
+	-w "$(ROOT_DIR)" \
+	-e "TEXINPUTS=$(TEXINPUTS)" \
+	-e "BSTINPUTS=$(BSTINPUTS)" \
+	-e "TEXMFVAR=$(TEXMFVAR)" \
+	-e "SEMI_LATEX_ENV=docker" \
+	$(DOCKER_IMAGE)
+
 watch:
 	@if [ -z "$(DIR_ARG)" ]; then \
 		echo "Error: Directory not specified."; \
@@ -276,7 +286,16 @@ watch:
 		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
 		exit 1; \
 	fi
+ifdef SEMI_LATEX_ENV
 	$(call watch_smart,$(DIR_ARG))
+else ifneq ($(HAS_NIX),)
+	$(call watch_smart,$(DIR_ARG))
+else ifneq ($(HAS_DOCKER),)
+	@# Run entire watch process inside Docker container
+	$(DOCKER_RUN_INTERACTIVE) make watch $(DIR_ARG)
+else
+	$(call watch_smart,$(DIR_ARG))
+endif
 
 # -----------------------------------------------------------------------------
 # Test
@@ -296,7 +315,7 @@ endif
 else ifneq ($(HAS_DOCKER),)
 ifndef SEMI_LATEX_ENV
 	@echo "Entering Docker environment for test suite..."
-	@$(DOCKER_RUN) $(MAKE) _test_run
+	@$(DOCKER_RUN) make _test_run
 else
 	@$(MAKE) _test_run
 endif
