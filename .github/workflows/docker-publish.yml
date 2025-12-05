@@ -2,7 +2,7 @@ name: Publish Docker Image to DockerHub
 
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["docker-test"]
     types:
       - completed
     branches: [ main ]
