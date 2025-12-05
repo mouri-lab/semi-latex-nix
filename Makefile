@@ -252,6 +252,20 @@ clean-all:
 	@rm -rf "$(BUILD_DIR)"
 	@echo "Removed $(BUILD_DIR)"
 
+# -----------------------------------------------------------------------------
+# Docker Image Management
+# -----------------------------------------------------------------------------
+.PHONY: docker-pull
+
+docker-pull:
+ifneq ($(HAS_DOCKER),)
+	@echo "Pulling latest Docker image: $(DOCKER_IMAGE)"
+	@docker pull $(DOCKER_IMAGE):latest
+else
+	@echo "Error: Docker is not available."
+	@exit 1
+endif
+
 watch:
 	@if [ -z "$(DIR_ARG)" ]; then \
 		echo "Error: Directory not specified."; \
@@ -347,6 +361,7 @@ help:
 	@echo "  make clean-source <path>   Clean intermediate files from source <path>"
 	@echo "  make clean-all             Clean all build artifacts (.build directory)"
 	@echo "  make watch <path>          Watch project in <path>"
+	@echo "  make docker-pull           Pull latest Docker image (Docker environment only)"
 	@echo ""
 	@echo "Build artifacts are stored in: $(BUILD_DIR)"
 	@echo "Only PDF and log files are copied back to source directory."

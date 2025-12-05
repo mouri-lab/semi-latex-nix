@@ -49,23 +49,24 @@ jobs:
         run: |
           # Get the repository name for DockerHub (format: username/repo-name)
           DOCKERHUB_REPO="${{ secrets.DOCKERHUB_USERNAME }}/semi-latex-builder"
-          
+
           # Tag with latest
           docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:latest
-          
+
           # Tag with commit SHA for versioning
           docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:${{ github.sha }}
-          
+
           # Tag with short SHA
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:${SHORT_SHA}
-          
+
           # Push all tags
           docker push ${DOCKERHUB_REPO}:latest
           docker push ${DOCKERHUB_REPO}:${{ github.sha }}
           docker push ${DOCKERHUB_REPO}:${SHORT_SHA}
 
   # Test with published Docker image from DockerHub
+  # This tests the Makefile's auto-detection feature (non-Nix environment)
   docker-pull-test:
     runs-on: ${{ matrix.runner }}
     needs: publish
@@ -93,15 +94,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Pull Docker image from DockerHub
-        run: docker pull sakuramourilab/semi-latex-builder:latest
-
-      - name: Run tests with DockerHub image (${{ matrix.platform }})
-        run: |
-          docker run --rm \
-            -v "$PWD:$PWD" \
-            -w "$PWD" \
-            -e "SEMI_LATEX_ENV=docker" \
-            sakuramourilab/semi-latex-builder:latest \
-            make test
+      - name: Pull Docker image
+        run: make docker-pull
+      - name: Run tests (auto-detects Docker)
+        run: make test
