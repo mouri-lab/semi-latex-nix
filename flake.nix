@@ -35,14 +35,6 @@
           exec ${pkgsLinux.xvfb-run}/bin/xvfb-run -a -e -s "-screen 0 1024x768x24" ${pkgsLinux.inkscape}/bin/inkscape "$@"
         '';
 
-        commonPackages = p: with p; [
-          bash
-          git
-          gnumake
-          perl
-          glibcLocales  # Required for UTF-8 locale support
-        ];
-
         commonPackagesDocker = p: with p; [
           busybox  # Provides grep, ls, and other basic utilities
           bash
