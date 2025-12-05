@@ -60,10 +60,12 @@ jobs:
           # Tag with architecture suffix
           docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:${{ matrix.arch }}-latest
           docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:${{ matrix.arch }}-${SHORT_SHA}
+          docker tag semi-latex-builder:latest ${DOCKERHUB_REPO}:${{ matrix.arch }}-${{ github.sha }}
           
           # Push architecture-specific tags
           docker push ${DOCKERHUB_REPO}:${{ matrix.arch }}-latest
           docker push ${DOCKERHUB_REPO}:${{ matrix.arch }}-${SHORT_SHA}
+          docker push ${DOCKERHUB_REPO}:${{ matrix.arch }}-${{ github.sha }}
 
   create-manifest:
     needs: build
@@ -111,14 +113,14 @@ jobs:
           
           # Create manifest for full SHA tag
           docker manifest create ${DOCKERHUB_REPO}:${{ github.sha }} \
-            ${DOCKERHUB_REPO}:amd64-${SHORT_SHA} \
-            ${DOCKERHUB_REPO}:arm64-${SHORT_SHA}
+            ${DOCKERHUB_REPO}:amd64-${{ github.sha }} \
+            ${DOCKERHUB_REPO}:arm64-${{ github.sha }}
           
           # Annotate with architecture info
           docker manifest annotate ${DOCKERHUB_REPO}:${{ github.sha }} \
-            ${DOCKERHUB_REPO}:amd64-${SHORT_SHA} --os linux --arch amd64
+            ${DOCKERHUB_REPO}:amd64-${{ github.sha }} --os linux --arch amd64
           docker manifest annotate ${DOCKERHUB_REPO}:${{ github.sha }} \
-            ${DOCKERHUB_REPO}:arm64-${SHORT_SHA} --os linux --arch arm64
+            ${DOCKERHUB_REPO}:arm64-${{ github.sha }} --os linux --arch arm64
           
           # Push full SHA manifest
           docker manifest push ${DOCKERHUB_REPO}:${{ github.sha }}
