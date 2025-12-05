@@ -64,3 +64,44 @@ jobs:
           docker push ${DOCKERHUB_REPO}:latest
           docker push ${DOCKERHUB_REPO}:${{ github.sha }}
           docker push ${DOCKERHUB_REPO}:${SHORT_SHA}
+
+  # Test with published Docker image from DockerHub
+  docker-pull-test:
+    runs-on: ${{ matrix.runner }}
+    needs: publish
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            platform: amd64
+          - runner: ubuntu-24.04-arm
+            platform: arm64
+    steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Pull Docker image from DockerHub
+        run: docker pull sakuramourilab/semi-latex-builder:latest
+
+      - name: Run tests with DockerHub image (${{ matrix.platform }})
+        run: |
+          docker run --rm \
+            -v "$PWD:$PWD" \
+            -w "$PWD" \
+            -e "SEMI_LATEX_ENV=docker" \
+            sakuramourilab/semi-latex-builder:latest \
+            make test
