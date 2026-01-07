@@ -55,6 +55,7 @@ make clean sample/semi-sample
 ### 4. 全テスト
 
 全てのサンプルプロジェクトが一括でビルドできるか確認します。
+外部プロジェクトのビルドテストも含まれます。
 
 ```bash
 make test
@@ -106,3 +107,27 @@ make build sample/semi-sample
 - `flake.nix`: 依存パッケージの定義 (TeX Live full など)
 - `style/`: 共通のスタイルファイル (`.cls`, `.sty`, `.bst`)
 - `sample/`: 各種 LaTeX プロジェクトのサンプル
+
+## テスト
+
+`make test` コマンドは、内部サンプルプロジェクトに加えて外部プロジェクトのビルドもテストします。
+
+外部プロジェクトのテストを実行するには、`../external-test-project` に簡単な LaTeX プロジェクトを配置してください：
+
+```bash
+# テスト用外部プロジェクトのセットアップ
+mkdir -p ../external-test-project
+cat > ../external-test-project/test.tex << 'EOF'
+\documentclass{article}
+\begin{document}
+\title{External Project Test}
+\maketitle
+This is a test document.
+\end{document}
+EOF
+
+# テスト実行
+make test
+```
+
+外部プロジェクトが存在しない場合、テストはスキップされます。

@@ -433,6 +433,24 @@ _test_run:
 		fi; \
 	done; \
 	echo ""; \
+	echo "========================================";\
+	echo "TESTING EXTERNAL PROJECT BUILDS"; \
+	echo "========================================"; \
+	EXTERNAL_TEST_DIR="../external-test-project"; \
+	if [ -d "$$EXTERNAL_TEST_DIR" ]; then \
+		echo ""; \
+		$(MAKE) clean $$EXTERNAL_TEST_DIR > /dev/null 2>&1; \
+		if $(MAKE) build $$EXTERNAL_TEST_DIR; then \
+			echo "PASS: $$EXTERNAL_TEST_DIR (external)"; \
+		else \
+			echo "FAIL: $$EXTERNAL_TEST_DIR (external)"; \
+			failed=1; \
+		fi; \
+	else \
+		echo "WARNING: External test project not found at $$EXTERNAL_TEST_DIR"; \
+		echo "Skipping external project test"; \
+	fi; \
+	echo ""; \
 	if [ $$failed -eq 0 ]; then \
 		echo "========================================"; \
 		echo "ALL TESTS PASSED"; \
