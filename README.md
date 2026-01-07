@@ -18,13 +18,21 @@ Nix を利用した再現性の高い LaTeX ビルド環境です。
 プロジェクトのルートディレクトリで `make` コマンドを使用します。
 環境は自動検出されるため、Nix/Docker/ローカルを意識する必要はありません。
 
+**semi-latex-nix ディレクトリの外にあるプロジェクトもビルドできます。** 
+相対パスまたは絶対パスで指定してください。
+
 ### 1. 基本的なビルド (PDF作成)
 
 ディレクトリを指定してビルドします。
 
 ```bash
+# semi-latex-nix 内のプロジェクト
 make build sample/semi-sample
 make build my-seminar-paper
+
+# semi-latex-nix 外のプロジェクト
+make build ../my-thesis
+make build /path/to/my-project
 ```
 
 ### 2. 自動ビルド (Watchモード)
@@ -79,6 +87,9 @@ make build sample/semi-sample
 
 Nix がない場合、Docker が自動的に使用されます。
 初回実行時に `sakuramourilab/semi-latex-builder` イメージが自動的にダウンロードされます。
+
+**外部ディレクトリのビルド**: semi-latex-nix 外のプロジェクトをビルドする場合、
+Docker は必要なディレクトリを自動的にマウントします（スタイルファイルとプロジェクトディレクトリの両方）。
 
 ```bash
 # 事前にイメージを取得する場合
