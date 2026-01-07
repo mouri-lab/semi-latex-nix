@@ -204,6 +204,14 @@ force: ;
 # Explicit Directory Targets
 # -----------------------------------------------------------------------------
 # Support for `make build <dir>`, `make clean <dir>`, `make watch <dir>`
+#
+# Note on code duplication: The path handling logic (converting to absolute path,
+# determining build directory name) is duplicated across build, clean, and watch
+# targets. This is intentional because:
+# 1. Make doesn't have a good way to share shell code across targets
+# 2. Each target needs to compute these values in its own recipe context
+# 3. Extracting to a separate target would require complex parameter passing
+# 4. The duplication is limited and clearly scoped to each target
 SUPPORTED_COMMANDS := build clean clean-source watch
 ifneq ($(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS)),)
     # Extract the directory argument (everything after the command)
