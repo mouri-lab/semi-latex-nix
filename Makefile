@@ -8,6 +8,9 @@ ROOT_DIR := $(shell pwd)
 # Temporary build directory (can be overridden)
 BUILD_DIR := $(ROOT_DIR)/.build
 
+# External test project directory (can be overridden)
+EXTERNAL_TEST_DIR := ../external-test-project
+
 # Environment variables for TeX search paths
 # Add style directory to TEXINPUTS and BSTINPUTS
 # // means search recursively. The trailing colon is important to include system paths.
@@ -38,14 +41,17 @@ DOCKER_IMAGE := sakuramourilab/semi-latex-builder
 
 # Docker run command with volume mounts
 # Mount the entire project directory and set up environment variables
-DOCKER_RUN := docker run --rm \
+# Note: Additional volume mounts may be added dynamically for external projects
+DOCKER_RUN_BASE := docker run --rm \
 	-v "$(ROOT_DIR):$(ROOT_DIR)" \
-	-w "$(ROOT_DIR)" \
 	-e "TEXINPUTS=$(TEXINPUTS)" \
 	-e "BSTINPUTS=$(BSTINPUTS)" \
 	-e "TEXMFVAR=$(TEXMFVAR)" \
 	-e "SEMI_LATEX_ENV=docker" \
 	$(DOCKER_IMAGE)
+
+# Default DOCKER_RUN (will be overridden for external projects)
+DOCKER_RUN := $(DOCKER_RUN_BASE) -w "$(ROOT_DIR)"
 
 ifdef SEMI_LATEX_ENV
     # Case 1: Inside Nix shell or Docker container (SEMI_LATEX_ENV is set)
@@ -88,11 +94,11 @@ define build_smart
 	@echo "========================================"
 	@# Ensure font maps are set up
 	@$(EXEC_CMD) "$(FONT_SETUP_CMD)"
-	@# Create temp build directory
-	@mkdir -p "$(BUILD_DIR)/$(1)"
+	@# Create temp build directory using safe name for external paths
+	@mkdir -p "$(2)"
 	@# Copy source files to build directory (excluding intermediate files)
-	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(BUILD_DIR)/$(1)/"
-	@$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
+	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(2)/"
+	@$(EXEC_CMD) "cd '$(2)' && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		echo 'Warning: No file with \\documentclass found. Falling back to first .tex file.'; \
@@ -105,9 +111,9 @@ define build_smart
 	echo \"Detected main file: \$$TARGET_TEX\"; \
 	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
 	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//') && \
-	cp -f \"\$$TARGET_BASE.pdf\" '$(ROOT_DIR)/$(1)/' && \
-	{ cp -f \"\$$TARGET_BASE.log\" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
-	{ cp -f \"\$$TARGET_BASE.blg\" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"
+	cp -f \"\$$TARGET_BASE.pdf\" '$(1)/' && \
+	{ cp -f \"\$$TARGET_BASE.log\" '$(1)/' 2>/dev/null || true; } && \
+	{ cp -f \"\$$TARGET_BASE.blg\" '$(1)/' 2>/dev/null || true; }"
 	@echo "----------------------------------------"
 	@echo "Build complete. Artifacts copied to $(1)"
 endef
@@ -115,7 +121,7 @@ endef
 define clean_smart
 	@echo "Cleaning in: $(1)"
 	@# Remove build directory for this project
-	@rm -rf "$(BUILD_DIR)/$(1)"
+	@rm -rf "$(2)"
 	@echo "Cleaned build directory for $(1)"
 endef
 
@@ -135,11 +141,11 @@ define watch_smart
 	@# Ensure font maps are set up
 	@$(EXEC_CMD) "$(FONT_SETUP_CMD)"
 	@# Create temp build directory
-	@mkdir -p "$(BUILD_DIR)/$(1)"
+	@mkdir -p "$(2)"
 	@# Initial copy of source files (excluding intermediate files)
-	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(BUILD_DIR)/$(1)/"
+	@rsync -a --delete $(RSYNC_EXCLUDE) "$(1)/" "$(2)/"
 	@# Initial build and detect target file
-	@$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
+	@$(EXEC_CMD) "cd '$(2)' && \
 	TARGET_TEX=\$$(grep -l '\\\\documentclass' *.tex 2>/dev/null | head -n 1); \
 	if [ -z \"\$$TARGET_TEX\" ]; then \
 		TARGET_TEX=\$$(ls *.tex 2>/dev/null | head -n 1); \
@@ -152,18 +158,18 @@ define watch_smart
 	echo \"\$$TARGET_TEX\" > .target_tex; \
 	TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\.tex\$$//'); \
 	$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
-	cp -f "\$$TARGET_BASE.pdf" '$(ROOT_DIR)/$(1)/' && \
-	{ cp -f "\$$TARGET_BASE.log" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
-	{ cp -f "\$$TARGET_BASE.blg" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"
+	cp -f "\$$TARGET_BASE.pdf" '$(1)/' && \
+	{ cp -f "\$$TARGET_BASE.log" '$(1)/' 2>/dev/null || true; } && \
+	{ cp -f "\$$TARGET_BASE.blg" '$(1)/' 2>/dev/null || true; }"
 	@# Open PDF after initial build
-	@TARGET_BASE=$$(cat "$(BUILD_DIR)/$(1)/.target_tex" | sed 's/\.tex$$//'); \
+	@TARGET_BASE=$$(cat "$(2)/.target_tex" | sed 's/\.tex$$//'); \
 	if command -v open >/dev/null 2>&1; then \
 		open "$(1)/$$TARGET_BASE.pdf" 2>/dev/null || true; \
 	elif command -v xdg-open >/dev/null 2>&1; then \
 		xdg-open "$(1)/$$TARGET_BASE.pdf" 2>/dev/null || true; \
 	fi
 	@# Get target basename for excluding output files
-	@TARGET_BASE=$$(cat "$(BUILD_DIR)/$(1)/.target_tex" | sed 's/\.tex$$//'); \
+	@TARGET_BASE=$$(cat "$(2)/.target_tex" | sed 's/\.tex$$//'); \
 	echo "========================================"; \
 	echo "Watching for changes in: $(1)"; \
 	echo "Excluding: $$TARGET_BASE*.pdf, $$TARGET_BASE*.log, $$TARGET_BASE*.blg"; \
@@ -177,14 +183,14 @@ define watch_smart
 		echo ""; \
 		echo "Change detected: $$CHANGED_FILE"; \
 		echo "Rebuilding..."; \
-		rsync -a --delete $(RSYNC_EXCLUDE) --exclude='.target_tex' "$(1)/" "$(BUILD_DIR)/$(1)/"; \
-		$(EXEC_CMD) "cd $(BUILD_DIR)/$(1) && \
+		rsync -a --delete $(RSYNC_EXCLUDE) --exclude='.target_tex' "$(1)/" "$(2)/"; \
+		$(EXEC_CMD) "cd '$(2)' && \
 			TARGET_TEX=\$$(cat .target_tex) && \
 			TARGET_BASE=\$$(echo \"\$$TARGET_TEX\" | sed 's/\\.tex\$$//') && \
 			$(LATEXMK) $(LATEXMK_FLAGS) \"\$$TARGET_TEX\" && \
-			cp -f "\$$TARGET_BASE.pdf" '$(ROOT_DIR)/$(1)/' && \
-			{ cp -f "\$$TARGET_BASE.log" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; } && \
-			{ cp -f "\$$TARGET_BASE.blg" '$(ROOT_DIR)/$(1)/' 2>/dev/null || true; }"; \
+			cp -f "\$$TARGET_BASE.pdf" '$(1)/' && \
+			{ cp -f "\$$TARGET_BASE.log" '$(1)/' 2>/dev/null || true; } && \
+			{ cp -f "\$$TARGET_BASE.blg" '$(1)/' 2>/dev/null || true; }"; \
 		echo "========================================"; \
 		echo "Waiting for changes..."; \
 	done
@@ -201,6 +207,14 @@ force: ;
 # Explicit Directory Targets
 # -----------------------------------------------------------------------------
 # Support for `make build <dir>`, `make clean <dir>`, `make watch <dir>`
+#
+# Note on code duplication: The path handling logic (converting to absolute path,
+# determining build directory name) is duplicated across build, clean, and watch
+# targets. This is intentional because:
+# 1. Make doesn't have a good way to share shell code across targets
+# 2. Each target needs to compute these values in its own recipe context
+# 3. Extracting to a separate target would require complex parameter passing
+# 4. The duplication is limited and clearly scoped to each target
 SUPPORTED_COMMANDS := build clean clean-source watch
 ifneq ($(filter $(firstword $(MAKECMDGOALS)),$(SUPPORTED_COMMANDS)),)
     # Extract the directory argument (everything after the command)
@@ -221,7 +235,47 @@ build:
 		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
 		exit 1; \
 	fi
-	$(call build_smart,$(DIR_ARG))
+	@# Convert to absolute path
+	@TARGET_ABS=$$(cd "$(DIR_ARG)" && pwd); \
+	case "$$TARGET_ABS" in \
+		"$(ROOT_DIR)"*) \
+			TARGET_REL=$$(realpath --relative-to="$(ROOT_DIR)" "$$TARGET_ABS"); \
+			BUILD_PATH="$(BUILD_DIR)/$$TARGET_REL"; \
+			;; \
+		*) \
+			BUILD_NAME=$$(echo "$$TARGET_ABS" | sed 's|^/|_external_|' | sed 's|/|_|g'); \
+			BUILD_PATH="$(BUILD_DIR)/$$BUILD_NAME"; \
+			;; \
+	esac; \
+	if [ -n "$(HAS_DOCKER)" ] && [ -z "$(SEMI_LATEX_ENV)" ] && [ -z "$(HAS_NIX)" ]; then \
+		case "$$TARGET_ABS" in \
+			"$(ROOT_DIR)"*) \
+				$(MAKE) _build_direct TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
+				;; \
+			*) \
+				$(MAKE) _build_external_docker TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
+				;; \
+		esac; \
+	else \
+		$(MAKE) _build_direct TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
+	fi
+
+_build_direct:
+	$(call build_smart,$(TARGET_ABS),$(BUILD_PATH))
+
+_build_external_docker:
+	@# For external directories, we need to mount both ROOT_DIR and the target directory
+	@echo "Building external project with Docker..."
+	@DOCKER_RUN_EXT="docker run --rm \
+		-v \"$(ROOT_DIR):$(ROOT_DIR)\" \
+		-v \"$(TARGET_ABS):$(TARGET_ABS)\" \
+		-w \"$(ROOT_DIR)\" \
+		-e \"TEXINPUTS=$(TEXINPUTS)\" \
+		-e \"BSTINPUTS=$(BSTINPUTS)\" \
+		-e \"TEXMFVAR=$(TEXMFVAR)\" \
+		-e \"SEMI_LATEX_ENV=docker\" \
+		$(DOCKER_IMAGE)"; \
+	EXEC_CMD="$$DOCKER_RUN_EXT bash -c" $(MAKE) _build_direct TARGET_ABS="$(TARGET_ABS)" BUILD_PATH="$(BUILD_PATH)"
 
 clean:
 	@if [ -z "$(DIR_ARG)" ]; then \
@@ -233,7 +287,22 @@ clean:
 		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
 		exit 1; \
 	fi
-	$(call clean_smart,$(DIR_ARG))
+	@# Convert to absolute path
+	@TARGET_ABS=$$(cd "$(DIR_ARG)" && pwd); \
+	case "$$TARGET_ABS" in \
+		"$(ROOT_DIR)"*) \
+			TARGET_REL=$$(realpath --relative-to="$(ROOT_DIR)" "$$TARGET_ABS"); \
+			BUILD_PATH="$(BUILD_DIR)/$$TARGET_REL"; \
+			;; \
+		*) \
+			BUILD_NAME=$$(echo "$$TARGET_ABS" | sed 's|^/|_external_|' | sed 's|/|_|g'); \
+			BUILD_PATH="$(BUILD_DIR)/$$BUILD_NAME"; \
+			;; \
+	esac; \
+	$(MAKE) _clean_direct TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"
+
+_clean_direct:
+	$(call clean_smart,$(TARGET_ABS),$(BUILD_PATH))
 
 clean-source:
 	@if [ -z "$(DIR_ARG)" ]; then \
@@ -286,16 +355,42 @@ watch:
 		echo "Error: Directory '$(DIR_ARG)' does not exist."; \
 		exit 1; \
 	fi
-ifdef SEMI_LATEX_ENV
-	$(call watch_smart,$(DIR_ARG))
-else ifneq ($(HAS_NIX),)
-	$(call watch_smart,$(DIR_ARG))
-else ifneq ($(HAS_DOCKER),)
-	@# Run entire watch process inside Docker container
-	$(DOCKER_RUN_INTERACTIVE) make watch $(DIR_ARG)
-else
-	$(call watch_smart,$(DIR_ARG))
-endif
+	@# Convert to absolute path
+	@TARGET_ABS=$$(cd "$(DIR_ARG)" && pwd); \
+	case "$$TARGET_ABS" in \
+		"$(ROOT_DIR)"*) \
+			TARGET_REL=$$(realpath --relative-to="$(ROOT_DIR)" "$$TARGET_ABS"); \
+			BUILD_PATH="$(BUILD_DIR)/$$TARGET_REL"; \
+			;; \
+		*) \
+			BUILD_NAME=$$(echo "$$TARGET_ABS" | sed 's|^/|_external_|' | sed 's|/|_|g'); \
+			BUILD_PATH="$(BUILD_DIR)/$$BUILD_NAME"; \
+			;; \
+	esac; \
+	if [ -n "$(HAS_DOCKER)" ] && [ -z "$(SEMI_LATEX_ENV)" ] && [ -z "$(HAS_NIX)" ]; then \
+		case "$$TARGET_ABS" in \
+			"$(ROOT_DIR)"*) \
+				$(DOCKER_RUN_INTERACTIVE) make watch $(DIR_ARG); \
+				;; \
+			*) \
+				DOCKER_RUN_EXT="docker run --rm -it \
+					-v \"$(ROOT_DIR):$(ROOT_DIR)\" \
+					-v \"$$TARGET_ABS:$$TARGET_ABS\" \
+					-w \"$(ROOT_DIR)\" \
+					-e \"TEXINPUTS=$(TEXINPUTS)\" \
+					-e \"BSTINPUTS=$(BSTINPUTS)\" \
+					-e \"TEXMFVAR=$(TEXMFVAR)\" \
+					-e \"SEMI_LATEX_ENV=docker\" \
+					$(DOCKER_IMAGE)"; \
+				$$DOCKER_RUN_EXT make watch $(DIR_ARG); \
+				;; \
+		esac; \
+	else \
+		$(MAKE) _watch_direct TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
+	fi
+
+_watch_direct:
+	$(call watch_smart,$(TARGET_ABS),$(BUILD_PATH))
 
 # -----------------------------------------------------------------------------
 # Test
@@ -341,6 +436,24 @@ _test_run:
 		fi; \
 	done; \
 	echo ""; \
+	echo "========================================"; \
+	echo "TESTING EXTERNAL PROJECT BUILDS"; \
+	echo "========================================"; \
+	EXTERNAL_TEST_DIR="$(EXTERNAL_TEST_DIR)"; \
+	if [ -d "$$EXTERNAL_TEST_DIR" ]; then \
+		echo ""; \
+		$(MAKE) clean $$EXTERNAL_TEST_DIR > /dev/null 2>&1; \
+		if $(MAKE) build $$EXTERNAL_TEST_DIR; then \
+			echo "PASS: $$EXTERNAL_TEST_DIR (external)"; \
+		else \
+			echo "FAIL: $$EXTERNAL_TEST_DIR (external)"; \
+			failed=1; \
+		fi; \
+	else \
+		echo "WARNING: External test project not found at $$EXTERNAL_TEST_DIR"; \
+		echo "Skipping external project test"; \
+	fi; \
+	echo ""; \
 	if [ $$failed -eq 0 ]; then \
 		echo "========================================"; \
 		echo "ALL TESTS PASSED"; \
@@ -359,16 +472,19 @@ _test_run:
 # Prevent make from trying to rebuild the Makefile itself
 Makefile:;
 
-# Helper targets for generic directory operations
+# Helper targets for generic directory operations (deprecated, kept for compatibility)
 .PHONY: _build_dir _clean_dir _watch_dir
 _build_dir:
-	$(call build_smart,$(TARGET_DIR))
+	@echo "Warning: _build_dir is deprecated"
+	$(call build_smart,$(TARGET_DIR),$(BUILD_DIR)/$(TARGET_DIR))
 
 _clean_dir:
-	$(call clean_smart,$(TARGET_DIR))
+	@echo "Warning: _clean_dir is deprecated"
+	$(call clean_smart,$(TARGET_DIR),$(BUILD_DIR)/$(TARGET_DIR))
 
 _watch_dir:
-	$(call watch_smart,$(TARGET_DIR))
+	@echo "Warning: _watch_dir is deprecated"
+	$(call watch_smart,$(TARGET_DIR),$(BUILD_DIR)/$(TARGET_DIR))
 
 # -----------------------------------------------------------------------------
 # Help
@@ -385,14 +501,20 @@ help:
 	@echo "Build artifacts are stored in: $(BUILD_DIR)"
 	@echo "Only PDF and log files are copied back to source directory."
 	@echo ""
+	@echo "<path> can be:"
+	@echo "  - Relative path within semi-latex-nix: sample/semi-sample"
+	@echo "  - Relative path outside semi-latex-nix: ../my-project"
+	@echo "  - Absolute path: /path/to/my-project"
+	@echo ""
 	@echo "Execution Environment (auto-detected):"
 	@echo "  1. Nix (nix develop)       - if 'nix' command is available"
 	@echo "  2. Docker                  - if 'docker' is available (uses $(DOCKER_IMAGE))"
 	@echo "  3. Host LaTeX              - if 'latexmk' is in PATH"
 	@echo ""
 	@echo "Examples:"
-	@echo "  make build sample/semi-sample"
-	@echo "  make build my-seminar-paper"
+	@echo "  make build sample/semi-sample      # Internal project"
+	@echo "  make build ../my-thesis            # External project (relative)"
+	@echo "  make build /path/to/my-project     # External project (absolute)"
 	@echo "  make clean sample/semi-sample"
-	@echo "  make clean-source semi/20251205   # Remove old intermediate files"
+	@echo "  make clean-source semi/20251205    # Remove old intermediate files"
 	@echo "  make clean-all"

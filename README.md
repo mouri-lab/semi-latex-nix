@@ -18,13 +18,21 @@ Nix を利用した再現性の高い LaTeX ビルド環境です。
 プロジェクトのルートディレクトリで `make` コマンドを使用します。
 環境は自動検出されるため、Nix/Docker/ローカルを意識する必要はありません。
 
+**semi-latex-nix ディレクトリの外にあるプロジェクトもビルドできます。** 
+相対パスまたは絶対パスで指定してください。
+
 ### 1. 基本的なビルド (PDF作成)
 
 ディレクトリを指定してビルドします。
 
 ```bash
+# semi-latex-nix 内のプロジェクト
 make build sample/semi-sample
 make build my-seminar-paper
+
+# semi-latex-nix 外のプロジェクト
+make build ../my-thesis
+make build /path/to/my-project
 ```
 
 ### 2. 自動ビルド (Watchモード)
@@ -47,6 +55,7 @@ make clean sample/semi-sample
 ### 4. 全テスト
 
 全てのサンプルプロジェクトが一括でビルドできるか確認します。
+外部プロジェクトのビルドテストも含まれます。
 
 ```bash
 make test
@@ -80,6 +89,9 @@ make build sample/semi-sample
 Nix がない場合、Docker が自動的に使用されます。
 初回実行時に `sakuramourilab/semi-latex-builder` イメージが自動的にダウンロードされます。
 
+**外部ディレクトリのビルド**: semi-latex-nix 外のプロジェクトをビルドする場合、
+Docker は必要なディレクトリを自動的にマウントします（スタイルファイルとプロジェクトディレクトリの両方）。
+
 ```bash
 # 事前にイメージを取得する場合
 make docker-pull
@@ -95,3 +107,30 @@ make build sample/semi-sample
 - `flake.nix`: 依存パッケージの定義 (TeX Live full など)
 - `style/`: 共通のスタイルファイル (`.cls`, `.sty`, `.bst`)
 - `sample/`: 各種 LaTeX プロジェクトのサンプル
+
+## テスト
+
+`make test` コマンドは、内部サンプルプロジェクトに加えて外部プロジェクトのビルドもテストします。
+
+外部プロジェクトのテストを実行するには、`../external-test-project` に簡単な LaTeX プロジェクトを配置してください：
+
+```bash
+# テスト用外部プロジェクトのセットアップ
+mkdir -p ../external-test-project
+cat > ../external-test-project/test.tex << 'EOF'
+\documentclass{article}
+\begin{document}
+\title{External Project Test}
+\maketitle
+This is a test document.
+\end{document}
+EOF
+
+# テスト実行
+make test
+
+# カスタムディレクトリを使用する場合
+make test EXTERNAL_TEST_DIR=/path/to/your/test-project
+```
+
+外部プロジェクトが存在しない場合、テストはスキップされます。
