@@ -48,10 +48,11 @@ DOCKER_RUN_BASE := docker run --rm \
 	-e "BSTINPUTS=$(BSTINPUTS)" \
 	-e "TEXMFVAR=$(TEXMFVAR)" \
 	-e "SEMI_LATEX_ENV=docker" \
+	-w "$(ROOT_DIR)" \
 	$(DOCKER_IMAGE)
 
 # Default DOCKER_RUN (will be overridden for external projects)
-DOCKER_RUN := $(DOCKER_RUN_BASE) -w "$(ROOT_DIR)"
+DOCKER_RUN := $(DOCKER_RUN_BASE)
 
 ifdef SEMI_LATEX_ENV
     # Case 1: Inside Nix shell or Docker container (SEMI_LATEX_ENV is set)
