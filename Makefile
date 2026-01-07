@@ -72,29 +72,6 @@ endif
 all: help
 
 # -----------------------------------------------------------------------------
-# Path Handling for External Directories
-# -----------------------------------------------------------------------------
-# Function to convert a path to absolute path
-# Args: $(1) = path (relative or absolute)
-define make_absolute
-$(shell cd "$(1)" 2>/dev/null && pwd || echo "$(1)")
-endef
-
-# Function to check if a path is outside ROOT_DIR
-# Returns the path if outside, empty if inside
-# Args: $(1) = absolute path
-define is_external
-$(shell case "$(1)" in "$(ROOT_DIR)"*) echo "" ;; *) echo "$(1)" ;; esac)
-endef
-
-# Function to create a safe build directory name for external paths
-# Converts /path/to/project to _external_path_to_project
-# Args: $(1) = absolute path
-define external_build_name
-$(shell echo "$(1)" | sed 's|^/|_external_|' | sed 's|/|_|g')
-endef
-
-# -----------------------------------------------------------------------------
 # Smart Build Logic
 # -----------------------------------------------------------------------------
 # Builds in a temporary directory and copies back only the PDF and log files.
@@ -262,7 +239,7 @@ build:
 	if [ -n "$(HAS_DOCKER)" ] && [ -z "$(SEMI_LATEX_ENV)" ] && [ -z "$(HAS_NIX)" ]; then \
 		case "$$TARGET_ABS" in \
 			"$(ROOT_DIR)"*) \
-				$(MAKE) _build_internal_docker TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
+				$(MAKE) _build_direct TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
 				;; \
 			*) \
 				$(MAKE) _build_external_docker TARGET_ABS="$$TARGET_ABS" BUILD_PATH="$$BUILD_PATH"; \
@@ -273,9 +250,6 @@ build:
 	fi
 
 _build_direct:
-	$(call build_smart,$(TARGET_ABS),$(BUILD_PATH))
-
-_build_internal_docker:
 	$(call build_smart,$(TARGET_ABS),$(BUILD_PATH))
 
 _build_external_docker:
