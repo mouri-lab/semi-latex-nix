@@ -128,6 +128,9 @@ EOF
 
 # テスト実行
 make test
+
+# カスタムディレクトリを使用する場合
+make test EXTERNAL_TEST_DIR=/path/to/your/test-project
 ```
 
 外部プロジェクトが存在しない場合、テストはスキップされます。

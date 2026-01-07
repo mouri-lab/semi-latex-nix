@@ -8,6 +8,9 @@ ROOT_DIR := $(shell pwd)
 # Temporary build directory (can be overridden)
 BUILD_DIR := $(ROOT_DIR)/.build
 
+# External test project directory (can be overridden)
+EXTERNAL_TEST_DIR := ../external-test-project
+
 # Environment variables for TeX search paths
 # Add style directory to TEXINPUTS and BSTINPUTS
 # // means search recursively. The trailing colon is important to include system paths.
@@ -433,10 +436,10 @@ _test_run:
 		fi; \
 	done; \
 	echo ""; \
-	echo "========================================";\
+	echo "========================================"; \
 	echo "TESTING EXTERNAL PROJECT BUILDS"; \
 	echo "========================================"; \
-	EXTERNAL_TEST_DIR="../external-test-project"; \
+	EXTERNAL_TEST_DIR="$(EXTERNAL_TEST_DIR)"; \
 	if [ -d "$$EXTERNAL_TEST_DIR" ]; then \
 		echo ""; \
 		$(MAKE) clean $$EXTERNAL_TEST_DIR > /dev/null 2>&1; \
