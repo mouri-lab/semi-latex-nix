@@ -1,8 +1,9 @@
-% \documentclass[submit,techreq,noauthor]{eco}	% ゼミ用テンプレート
-\documentclass[submit,techreq,noauthor,dvipdfmx]{b3-eco}	% b3用テンプレート
+\documentclass[submit,techreq,noauthor,dvipdfmx]{eco}
+	% ゼミ用テンプレート
+% \documentclass[submit,techreq,noauthor,dvipdfmx]{b3-eco}	% b3用テンプレート
 % \documentclass[submit,techreq,noauthor,dvipdfmx]{mid-eco}	% b4中間発表テンプレート
 
-\usepackage[dvipdfmx]{graphicx}
+\usepackage{graphicx}
 % \usepackage{mediabb}				% for pdf include
 \usepackage{listings, jlisting} 		% for source code
 \usepackage{url}
@@ -145,6 +146,16 @@ $ make watch sample/semi-sample
 
 
 \section{図の挿入方法}
+\subsection{通常の画像ファイル}
+通常の画像ファイル（png, jpg）は，includegraphicsコマンドで挿入します（例: 図\ref{fig:normal-sample}）．
+
+\begin{figure}[t]
+	\centering
+	\includegraphics[width=8cm]{fig/normal-sample.png}
+	\caption{通常の画像ファイル}
+	\label{fig:normal-sample}
+\end{figure}
+
 \subsection{TgifやOpenOfficeで作る場合}
 TgifやOpenOfficeで作る場合は，epsで出力して，includegraphicsで挿入しましょう（例:図\ref{fig:tgif-sample}）．
 
